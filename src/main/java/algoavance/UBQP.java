@@ -35,7 +35,7 @@ public class UBQP {
         return toReturn;
     }
 
-    public String tabToString(int[] tab){
+    public static String tabToString(int[] tab){
         String toReturn = "[\t";
         for (int i=0; i<tab.length; i++){
             toReturn+= tab[i] + "\t";
@@ -44,7 +44,7 @@ public class UBQP {
         return toReturn;
     }
 
-    public String matToString(int[][] mat){
+    public static String matToString(int[][] mat){
         String toReturn = "";
         for (int i=0; i<mat[0].length; i++){
             toReturn += "[\t";
@@ -61,7 +61,7 @@ public class UBQP {
         return f;
     }
 
-    private int calculerf(int[] vec){
+    int calculerf(int[] vec){
         int f=0;
         for (int i=0; i<vec.length; i++){
             for (int j=0; j<vec.length; j++){
