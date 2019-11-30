@@ -49,6 +49,6 @@ public class Main
 
         UBQP myUBQP = new UBQP(Q);
         System.out.println(myUBQP.QtoString());
-        System.out.println(myUBQP.tabToString(myUBQP.hillClimbingWithRestart()) + "\nf=" + myUBQP.getF());
+        System.out.println(myUBQP.tabToString(myUBQP.hillClimbingWithRestart(constraint)) + "\nf=" + myUBQP.getF());
     }
 }
