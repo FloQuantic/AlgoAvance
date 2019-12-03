@@ -1,43 +1,36 @@
 package algoavance;
 
-import java.awt.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class TSP {
+public class TSP extends MetaAbs {
 
-    private static final int NB_DEPL = 1000;
-    private static final int NB_ESSAIS = 10000;
-    private static final int MAX_TABOU = 10;
     private int[] tournee;
     private HashMap<Integer,int[]> maMap;
-    private double dist;
+    private DonneesSolution mesDonnees;
 
     public TSP(HashMap<Integer,int[]> maMap) {
         this.maMap = maMap;
         tournee = new int[maMap.size()];
         solutionAleatoire();
-        dist = calculerDistance(tournee);
+        mesDonnees = new DonneesSolution(tournee,calculerDistance(tournee),-1);
     }
 
-    public String tourneeToString(){
-        return UBQP.tabToString(tournee);
+    public TSP(HashMap<Integer,int[]> maMap, int[] tournee) {
+        this.maMap = maMap;
+        this.tournee = tournee;
+        mesDonnees = new DonneesSolution(tournee,calculerDistance(tournee),-1);
     }
 
-    public String maMapToString(){
+    public String maMapToString(HashMap<Integer, int[]> map){
         String toReturn = "";
-        for (Integer x: maMap.keySet()) {
-            toReturn += x + " :\t" + UBQP.tabToString(maMap.get(x))+ "\n";
+        for (Integer x: map.keySet()) {
+            toReturn += x + " :\t" + tabToString(map.get(x))+ "\n";
         }
         return toReturn;
-    }
-
-    public double getDist(){
-        calculerDistance(tournee);
-        return dist;
     }
 
     public void solutionAleatoire(){
@@ -61,7 +54,7 @@ public class TSP {
     }
 
     private double calculerDistance(int[] sol) {
-        dist=0;
+        double dist=0;
         dist+=distEucl(0,0,maMap.get(sol[0])[0],maMap.get(sol[0])[1]);
         for (int i=1; i<sol.length; i++){
             dist+=distEucl(maMap.get(sol[i-1])[0],maMap.get(sol[i-1])[1],maMap.get(sol[i])[0],maMap.get(sol[i])[1]);
@@ -73,20 +66,31 @@ public class TSP {
     private HashMap<Integer,int[]> voisinsTournee(int[] vec){
         HashMap<Integer,int[]> mesVoisins = new HashMap<>();
 
-        int[] temp;
+        int[] temp = new int[vec.length];
         int perm;
+        int ind = 0;
         for (int i=0; i<vec.length; i++){
-            temp=vec;
-            perm=temp[i];
-            temp[i]=temp[(i+1)%vec.length];
-            temp[(i+1)%vec.length]=perm;
-            mesVoisins.put(i,temp);
+            for (int k=i+1; k<vec.length; k++) {
+                for (int j = 0; j < vec.length; j++) {
+                    temp[j] = vec[j];
+                }
+                perm = temp[i];
+                temp[i] = temp[k];
+                temp[k] = perm;
+                int[] t = new int[vec.length];
+                for (int j = 0; j < vec.length; j++) {
+                    t[j] = temp[j];
+                }
+                mesVoisins.put(ind, t);
+                ind++;
+            }
         }
 
         return mesVoisins;
     }
 
     private int[] meilleurVoisin(HashMap<Integer,int[]> voisins){
+        if (voisins.isEmpty()) return tournee;
         double[] distVoisins = new double[voisins.size()];
         for (int i=0; i<voisins.size(); i++){
             distVoisins[i]=calculerDistance(voisins.get(i));
@@ -109,7 +113,8 @@ public class TSP {
         return voisins.get(indexList.get(r.nextInt(indexList.size())));
     }
 
-    public int[] steepestHillClimbing(){
+    public DonneesSolution steepestHillClimbing(){
+        DonneesSolution mesDonneesTemp = new DonneesSolution(tournee,calculerDistance(tournee),0);
         int nbDepl = 0;
         boolean stop = false;
         int[] temp;
@@ -122,24 +127,35 @@ public class TSP {
                 stop = true;
             }
             nbDepl++;
-        } while (nbDepl!=NB_DEPL && !stop);
+        } while (nbDepl!=super.NB_DEPL && !stop);
 
-        return tournee;
+        mesDonneesTemp.setVecSolution(tournee);
+        mesDonneesTemp.setResultatFonction(calculerDistance(tournee));
+        mesDonneesTemp.setNbDeplacement(nbDepl);
+
+        return mesDonneesTemp;
     }
 
-    public int[] hillClimbingWithRestart(){
+    public void hillClimbingWithRestart(boolean withTabou){
+        DonneesSolution mesDonneesTemp;
         int[] min = tournee;
+        mesDonnees.setNbDeplacement(0);
 
-        for (int i=0; i<NB_ESSAIS; i++){
+        for (int i=0; i<super.NB_ESSAIS; i++){
             solutionAleatoire();
-            if (calculerDistance(steepestHillClimbing())<calculerDistance(min)){
+            mesDonneesTemp = (withTabou)?tabouClimbing(withTabou):steepestHillClimbing();
+            if (mesDonneesTemp.getResultatFonction()<calculerDistance(min)){
                 min = tournee;
+                if (mesDonneesTemp.getNbDeplacement()!=0){
+                    mesDonnees.setTabous(mesDonneesTemp.getTabous());
+                    mesDonnees.setNbDeplacement(mesDonneesTemp.getNbDeplacement());
+                }
             }
         }
 
         tournee = min;
-
-        return tournee;
+        mesDonnees.setVecSolution(tournee);
+        mesDonnees.setResultatFonction(calculerDistance(tournee));
     }
 
     private HashMap<Integer, int[]> voisinsNonTabou(int[] vec, Queue<int[]> maQueue){
@@ -147,24 +163,24 @@ public class TSP {
         HashMap<Integer,int[]> mapSansTabou = new HashMap<>();
 
         int indST = 0;
-        for (int i=0; i<vec.length; i++){
-            if (!maQueue.contains(voisins.get(i))) {
+        for (int i=0; i<voisins.size(); i++){
+            if (!containsElem(maQueue,voisins.get(i))) {
                 mapSansTabou.put(indST,voisins.get(i));
                 indST++;
             }
         }
 
-
-        return (indST!=0)?mapSansTabou:null;
+        return (indST>0)?mapSansTabou:null;
     }
 
-    public int[] tabouClimbing(){
+    public DonneesSolution tabouClimbing(boolean restart){
+        DonneesSolution mesDonneeesTemp = new DonneesSolution(tournee,calculerDistance(tournee),0);
         int[] min = tournee;
         int[] temp = tournee;
         Queue<int[]> listeTabou = new ConcurrentLinkedQueue<>();
         int nbDepl = 0;
         boolean stop = false;
-        HashMap<Integer,int[]> voisins;
+        HashMap<Integer,int[]> voisins = maMap;
 
         do{
             voisins = voisinsNonTabou(tournee,listeTabou);
@@ -173,15 +189,24 @@ public class TSP {
             } else {
                 stop = true;
             }
-            if (listeTabou.size()>=MAX_TABOU) listeTabou.remove(listeTabou.peek());
+            if (listeTabou.size()>=super.MAX_TABOU) listeTabou.remove(listeTabou.peek());
             listeTabou.add(tournee);
             if (calculerDistance(temp)<calculerDistance(min)) min = temp;
             tournee = temp;
             nbDepl++;
-        } while (nbDepl<NB_DEPL && !stop);
+        } while (nbDepl<super.NB_DEPL && !stop);
 
         tournee = min;
-        return tournee;
+        mesDonneeesTemp.setVecSolution(tournee);
+        mesDonneeesTemp.setResultatFonction(calculerDistance(tournee));
+        mesDonneeesTemp.setNbDeplacement(nbDepl);
+        mesDonneeesTemp.setTabous(listeTabou);
+        if (!restart) afficherListeTabou(listeTabou);
+
+        return mesDonneeesTemp;
     }
 
+    public DonneesSolution getMesDonnees() {
+        return mesDonnees;
+    }
 }

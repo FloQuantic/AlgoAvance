@@ -6,65 +6,44 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class UBQP {
+public class UBQP extends MetaAbs {
 
-    private final static int NB_DEPL = 100;
-    private final static int NB_ESSAIS = 100;
-    private final static int MAX_TABOU = 6;
     private int[] X;
     private int[][] Q;
-    private int f;
-    private int qLenght;
+    private int tailleVector;
+    private DonneesSolution mesDonnees;
 
     public UBQP(int[][] Q){
         this.Q = Q;
-        qLenght= Q[0].length;
-        X = new int[qLenght];
+        tailleVector= Q[0].length;
+        X = new int[tailleVector];
+        mesDonnees = new DonneesSolution(X,0,-1);
         solutionAleatoire();
     }
 
-    public String XtoString(){
-        String toReturn = "X:\n";
-        toReturn += tabToString(X);
-        return toReturn;
+    public UBQP(int[][] Q, int[] X){
+        this.Q = Q;
+        this.X = X;
+        tailleVector= X.length;
+        mesDonnees = new DonneesSolution(X,calculerResultat(X),-1);
     }
 
     public String QtoString(){
-        String toReturn = "Q:\n";
-        toReturn += matToString(Q);
-        return toReturn;
-    }
-
-    public static String tabToString(int[] tab){
-        String toReturn = "[\t";
-        for (int i=0; i<tab.length; i++){
-            toReturn+= tab[i] + "\t";
-        }
-        toReturn += "]";
-        return toReturn;
-    }
-
-    public static String matToString(int[][] mat){
-        String toReturn = "";
-        for (int i=0; i<mat[0].length; i++){
+        String toReturn = "Q en entree :\n";
+        for (int i=0; i<tailleVector; i++){
             toReturn += "[\t";
-            for (int j=0; j<mat[0].length; j++){
-                toReturn += mat[i][j] + "\t";
+            for (int j=0; j<tailleVector; j++){
+                toReturn += Q[i][j] + "\t";
             }
             toReturn += "]\n";
         }
         return toReturn;
     }
 
-    public int getF(){
-        f = calculerf(X);
-        return f;
-    }
-
-    int calculerf(int[] vec){
+    private int calculerResultat(int[] vec){
         int f=0;
-        for (int i=0; i<vec.length; i++){
-            for (int j=0; j<vec.length; j++){
+        for (int i=0; i<tailleVector; i++){
+            for (int j=0; j<tailleVector; j++){
                 f+=Q[i][j]*vec[i]*vec[j];
             }
         }
@@ -73,50 +52,51 @@ public class UBQP {
 
     public void solutionAleatoire(){
         Random r = new Random();
-        for (int i=0; i<X.length; i++){
+        for (int i=0; i<tailleVector; i++){
             X[i] = r.nextInt(2);
         }
-        f=calculerf(X);
+        mesDonnees.setVecSolution(X);
+        mesDonnees.setResultatFonction(calculerResultat(X));
     }
 
-    private int[][] voisinsX(int[] vec){
-        int[][] voisinsX = new int[vec.length][vec.length];
-        for (int i=0; i<vec.length; i++){
-            for (int j=0; j<vec.length; j++){
+    private int[][] voisinsVecteurSolution(int[] vec){
+        int[][] voisinsVecteurSolution = new int[tailleVector][tailleVector];
+        for (int i=0; i<tailleVector; i++){
+            for (int j=0; j<tailleVector; j++){
                 if (i==j) {
-                    voisinsX[i][j] = (vec[j] + 1) % 2;
+                    voisinsVecteurSolution[i][j] = (vec[j] + 1) % 2;
                 } else {
-                    voisinsX[i][j] = vec[j];
+                    voisinsVecteurSolution[i][j] = vec[j];
                 }
             }
         }
-        return voisinsX;
+        return voisinsVecteurSolution;
     }
 
     private boolean contrainteRespecte(int[] vec, int constraint){
         int sum = 0;
-        for (int i=0; i<vec.length; i++){
+        for (int i=0; i<tailleVector; i++){
             sum += vec[i];
         }
         return sum>=constraint;
     }
 
     private int[] meilleurVoisin(int[][] voisinage, int constraint){
-        int[][] voisins = voisinage;
-        int[] fVoisins=  new int[voisinage[0].length];
-        for (int i=0; i<voisinage[0].length; i++){
-            fVoisins[i]=calculerf(voisins[i]);
+        int[] fVoisins=  new int[voisinage.length];
+        int len = 0;
+        for (int i=0; i<fVoisins.length; i++){
+            fVoisins[i]=calculerResultat(voisinage[i]);
         }
 
         ArrayList<Integer> indexList = new ArrayList<>();
         int ind = 0;
-        while (ind<voisinage[0].length && !contrainteRespecte(voisins[ind],constraint)) ind++;
-        if (ind>=voisinage[0].length) return null;
+        while (ind<voisinage.length && !contrainteRespecte(voisinage[ind],constraint)) ind++;
+        if (ind>=voisinage.length) return null;
         int min = fVoisins[ind];
 
         indexList.add(0);
-        for (int i=ind; i<voisinage[0].length; i++){
-            if (contrainteRespecte(voisins[i],constraint)) {
+        for (int i=ind; i<voisinage.length; i++){
+            if (contrainteRespecte(voisinage[i],constraint)) {
                 if (fVoisins[i] < min) {
                     min = fVoisins[i];
                     indexList.clear();
@@ -128,51 +108,61 @@ public class UBQP {
         }
 
         Random r = new Random();
-        return voisins[indexList.get(r.nextInt(indexList.size()))];
+        return voisinage[indexList.get(r.nextInt(indexList.size()))];
     }
 
-    public int[] steepestHillClimbing(int constraint){
+    public DonneesSolution steepestHillClimbing(int constraint){
+        DonneesSolution donneesTemp = new DonneesSolution(X,calculerResultat(X),0);
         int nbDepl = 0;
         boolean stop = false;
-        int[] temp = X;
+        int[] temp;
 
         do {
-            temp = meilleurVoisin(voisinsX(X), constraint);
-            if (temp==null) return X;
-            if (calculerf(temp)<calculerf(X)){
+            temp = meilleurVoisin(voisinsVecteurSolution(X), constraint);
+            if (temp==null) return donneesTemp;
+            if (calculerResultat(temp)<calculerResultat(X)){
                 X = temp;
             } else {
                 stop = true;
             }
             nbDepl++;
-        } while (nbDepl!=NB_DEPL && !stop);
+        } while (nbDepl!=super.NB_DEPL && !stop);
 
-        return X;
+        donneesTemp.setVecSolution(X);
+        donneesTemp.setResultatFonction(calculerResultat(X));
+        donneesTemp.setNbDeplacement(nbDepl);
+
+        return donneesTemp;
     }
 
-    public int[] hillClimbingWithRestart(int constraint){
+    public void hillClimbingWithRestart(int constraint, boolean withTabou){
         int[] min = X;
+        DonneesSolution mesDonneesTemp;
+        mesDonnees.setNbDeplacement(0);
 
-        for (int i=0; i<NB_ESSAIS; i++){
+        for (int i=0; i<super.NB_ESSAIS; i++){
             solutionAleatoire();
-            if (calculerf(steepestHillClimbing(constraint))<calculerf(min)){
+            mesDonneesTemp = (withTabou)?tabouClimbing(constraint):steepestHillClimbing(constraint);
+            if (mesDonneesTemp.getResultatFonction()<calculerResultat(min)){
                 min = X;
+                if (mesDonneesTemp.getNbDeplacement()!=0) mesDonnees.setNbDeplacement(mesDonneesTemp.getNbDeplacement());
             }
         }
 
         X = min;
+        mesDonnees.setVecSolution(X);
+        mesDonnees.setResultatFonction(calculerResultat(X));
 
-        return X;
     }
 
     private int[][] voisinsNonTabou(int[] vec, Queue<int[]> maQueue){
-        int[][] voisins = voisinsX(vec);
+        int[][] voisins = voisinsVecteurSolution(vec);
         int[][] voisinsSansTabou;
         HashMap<Integer,int[]> mapSansTabou = new HashMap<>();
 
         int indST = 0;
         for (int i=0; i<vec.length; i++){
-            if (!maQueue.contains(voisins[i])) {
+            if (!containsElem(maQueue,voisins[i])) {
                 mapSansTabou.put(indST,voisins[i]);
                 indST++;
             }
@@ -186,7 +176,8 @@ public class UBQP {
         return (indST!=0)?voisinsSansTabou:null;
     }
 
-    public int[] tabouClimbing(int constraint){
+    public DonneesSolution tabouClimbing(int constraint){
+        DonneesSolution mesDonnneesTemp = new DonneesSolution(X,calculerResultat(X),0);
         int[] min = X;
         int[] temp = X;
         Queue<int[]> listeTabou = new ConcurrentLinkedQueue<>();
@@ -201,15 +192,26 @@ public class UBQP {
             } else {
                 stop = true;
             }
-            if (listeTabou.size()>=MAX_TABOU) listeTabou.remove(listeTabou.peek());
+            if (listeTabou.size()>=super.MAX_TABOU) listeTabou.remove(listeTabou.peek());
             listeTabou.add(X);
-            if (calculerf(temp)<calculerf(min)) min = temp;
+            if (calculerResultat(temp)<calculerResultat(min)) min = temp;
             X = temp;
             nbDepl++;
-        } while (nbDepl<NB_DEPL && !stop);
+        } while (nbDepl<super.NB_DEPL && !stop);
 
         X = min;
-        return X;
+        mesDonnneesTemp.setVecSolution(X);
+        mesDonnneesTemp.setResultatFonction(calculerResultat(X));
+        mesDonnneesTemp.setNbDeplacement(nbDepl);
+        afficherListeTabou(listeTabou);
+
+        return mesDonnneesTemp;
+    }
+
+
+
+    public DonneesSolution getMesDonnees() {
+        return mesDonnees;
     }
 
 }

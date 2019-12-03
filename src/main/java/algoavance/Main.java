@@ -67,20 +67,65 @@ public class Main
 
     public static void main( String[] args )
     {
-        /*int[][] Q = chargerQ("graphe12345.txt");
+        /* UBQP ------------------------------------------------------------------ */
 
-        UBQP myUBQP = new UBQP(Q);
+        //Chargement de la matrice en entree
+        int[][] Q = chargerQ("graphe12345.txt");
+
+        //Init : pick a constructor
+        int[] X = null;
+        UBQP myUBQP = (X==null) ? new UBQP(Q) : new UBQP(Q,X);
+
+        //Affichage donnees en entrees
         System.out.println(myUBQP.QtoString());
-        System.out.println(myUBQP.tabToString(myUBQP.hillClimbingWithRestart(constraint)) + "\nf=" + myUBQP.getF()+"\n");
-        */
+        System.out.println("X en entree : " + myUBQP.tabToString(myUBQP.getMesDonnees().getVecSolution()) + "\n");
+
+        //Affichage resultats fonctions parametrees
+        boolean contrainte = false;
+        boolean tabou = false;
+
+        System.out.println("Resultats donnees en entree :");
+        myUBQP.getMesDonnees().afficherDonneesResultats();
+
+        System.out.println("Resultats steepestHillClimbing :");
+        myUBQP.steepestHillClimbing((contrainte)?constraint:0).afficherDonneesResultats();
+
+        System.out.println("Resultats tabouClimbing :");
+        myUBQP.tabouClimbing((contrainte)?constraint:0).afficherDonneesResultats();
+
+        System.out.println("Resultats hillClimbingWithRestart :");
+        myUBQP.hillClimbingWithRestart((contrainte)?constraint:0,tabou);
+        myUBQP.getMesDonnees().afficherDonneesResultats();
+
+        /* TSP -------------------------------------------------------------------- */
+
+        //Chargement de la map en entree
         HashMap<Integer,int[]> mapVille = chargerMap("tsp101.txt");
 
-        TSP monTSP = new TSP(mapVille);
-        System.out.println(monTSP.maMapToString());
-        System.out.println(monTSP.tourneeToString());
-        System.out.println(monTSP.tabouClimbing());
-        System.out.println(monTSP.tourneeToString());
-        System.out.println(monTSP.getDist());
+        //Init : pick a constructor
+        int[] T = null;
+        TSP monTSP = (T==null) ? new TSP(mapVille) : new TSP(mapVille,T);
+
+        //Affichage donnees en entrees
+        System.out.println("Map en entree :\n" + monTSP.maMapToString(mapVille));
+        System.out.println("Tournee en entree : " + monTSP.tabToString(monTSP.getMesDonnees().getVecSolution()) + "\n");
+
+        //Affichage resultats fonctions parametrees
+        boolean tabouTSP = true;
+
+        System.out.println("Resultats donnees en entree :");
+        monTSP.getMesDonnees().afficherDonneesResultats();
+
+        System.out.println("Resultats steepestHillClimbing :");
+        monTSP.steepestHillClimbing().afficherDonneesResultats();
+
+        System.out.println("Resultats tabouClimbing :");
+        monTSP.tabouClimbing(false).afficherDonneesResultats();
+
+        System.out.println("Resultats hillClimbingWithRestart :");
+        monTSP.hillClimbingWithRestart(tabouTSP);
+        monTSP.getMesDonnees().afficherDonneesResultats();
+        monTSP.getMesDonnees().afficherTabou();
 
     }
 
